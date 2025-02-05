@@ -2,86 +2,44 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Web AR com A-Frame e Simple AR</title>
-    <!-- Carrega o A-Frame -->
+    <title>Objeto na Posição Inicial do Usuário</title>
+    <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- Carrega a biblioteca Simple AR (ajuste a URL conforme sua instalação) -->
-    <script src="https://unpkg.com/simple-ar"></script>
-    <style>
-      body { margin: 0; padding: 0; overflow: hidden; }
-      /* Garante que o canvas não intercepte os gestos do navegador */
-      a-scene, canvas { touch-action: none; }
-    </style>
+    <!-- AR.js com suporte para localização (GPS) -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   </head>
-  <body>
-    <!-- A cena inclui o componente simple-ar com a detecção de planos ativada -->
-    <a-scene simple-ar="planeDetection: true;">
-      <!-- Objeto que será posicionado (inicialmente invisível) -->
-      <a-box id="myBox" color="#EF2D5E" depth="0.2" height="0.2" width="0.2" visible="false"></a-box>
+  <body style="margin: 0; overflow: hidden;">
+    <!-- A cena utiliza AR.js em modo GPS -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
       
-      <!-- Câmera com controles básicos -->
-      <a-entity camera position="0 1.6 0" look-controls></a-entity>
-    </a-scene>
-
-    <script>
-      document.querySelector('a-scene').addEventListener('loaded', function () {
-        const sceneEl = this;
-        
-        // Aguarda o canvas ser definido pela cena
-        if (!sceneEl.canvas) {
-          sceneEl.addEventListener('render-target-loaded', setupListeners);
-        } else {
-          setupListeners();
-        }
-
-        function setupListeners() {
-          const canvas = sceneEl.canvas;
-          // Garante que o canvas não interprete os gestos de forma padrão
-          canvas.style.touchAction = 'none';
-
-          function handleTap(evt) {
-            evt.preventDefault();
-
-            // Obtém o retângulo do canvas para ajustar as coordenadas
-            const rect = canvas.getBoundingClientRect();
-            let x, y;
-            if (evt.touches && evt.touches.length > 0) {
-              x = evt.touches[0].clientX - rect.left;
-              y = evt.touches[0].clientY - rect.top;
-            } else {
-              x = evt.clientX - rect.left;
-              y = evt.clientY - rect.top;
-            }
-
-            // Exibe as coordenadas para debug (opcional)
-            console.log(`Coordenadas relativas: x=${x}, y=${y}`);
-
-            // Verifica se o Simple AR e seu método hitTest estão disponíveis
-            if (window.SimpleAR && typeof SimpleAR.hitTest === 'function') {
-              // Executa o hit test passando as coordenadas ajustadas
-              SimpleAR.hitTest(x, y)
-                .then(function(result) {
-                  if (result && result.position) {
-                    const boxEl = document.getElementById('myBox');
-                    boxEl.setAttribute('position', result.position);
-                    boxEl.setAttribute('visible', true);
-                  } else {
-                    console.log('Nenhum plano detectado na posição tocada.');
-                  }
-                })
-                .catch(function(err) {
-                  console.error('Erro no hit test:', err);
-                });
-            } else {
-              console.warn('Simple AR não está disponível ou a função hitTest não foi encontrada.');
+      <!-- A câmera que obtém a posição do usuário -->
+      <a-camera gps-camera rotation-reader></a-camera>
+      
+      <!-- Objeto que será posicionado na posição inicial do usuário -->
+      <a-entity id="objeto" 
+                geometry="primitive: box" 
+                material="color: red" 
+                scale="2 2 2">
+      </a-entity>
+      
+      <!-- Script que captura a posição inicial e posiciona o objeto -->
+      <script>
+        window.addEventListener('gps-camera-update-position', function() {
+          const cam = document.querySelector('[gps-camera]');
+          if (cam && cam.components && cam.components['gps-camera'] && cam.components['gps-camera'].currentCoords) {
+            const latitude = cam.components['gps-camera'].currentCoords.latitude;
+            const longitude = cam.components['gps-camera'].currentCoords.longitude;
+            const objeto = document.getElementById('objeto');
+            // Posiciona o objeto somente uma vez (na posição inicial)
+            if (!objeto.getAttribute('data-posicionado')) {
+              objeto.setAttribute('gps-entity-place', `latitude: ${latitude}; longitude: ${longitude};`);
+              objeto.setAttribute('data-posicionado', true);
+              console.log('Objeto posicionado em:', latitude, longitude);
             }
           }
-
-          // Adiciona os listeners para toque e clique (útil para testes no desktop)
-          canvas.addEventListener('touchstart', handleTap, false);
-          canvas.addEventListener('click', handleTap, false);
-        }
-      });
-    </script>
+        });
+      </script>
+      
+    </a-scene>
   </body>
 </html>
