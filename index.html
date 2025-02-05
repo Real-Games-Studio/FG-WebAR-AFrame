@@ -1,46 +1,33 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>AR Ancorado ao Mundo Real</title>
+    <title>AR Hit Test com A-Frame</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.rawgit.com/jeromeetienne/ar.js/3.3.2/aframe/build/aframe-ar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-ar-hit-test-component/dist/aframe-ar-hit-test-component.min.js"></script>
   </head>
   <body style="margin: 0; overflow: hidden;">
-    <!-- Instruções ao usuário -->
-    <div id="instructions" style="
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-family: Arial, sans-serif;">
-      Permita acesso à localização e mova-se até o objeto virtual.
-    </div>
-
     <a-scene
-      embedded
+      vr-mode-ui="enabled: false"
       arjs="sourceType: webcam; debugUIEnabled: false;"
+      xrweb="referenceSpaceType: local;"
+      webxr="optionalFeatures: hit-test;"
     >
-      <!-- Objeto 3D Posicionado em uma Coordenada GPS Específica -->
-      <a-box
-        gps-entity-place="latitude: -23.501629; longitude: -46.548894"
-        material="color: red;"
-        scale="2 2 2"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
-      >
+      <!-- Elemento que será posicionado pelo Hit Test -->
+      <a-box color="orange" position="0 0 0" visible="false" id="object-box">
       </a-box>
 
-      <!-- Camera com suporte à posição GPS -->
-      <gps-camera position="0 0 0"></gps-camera>
+      <!-- Componente Hit Test -->
+      <a-entity
+        ar-hit-test="target: #object-box; placement: true"
+      ></a-entity>
     </a-scene>
 
     <script>
-      // Ocultar instruções quando o GPS está ativo
-      window.addEventListener("gps-camera-update-position", () => {
-        document.getElementById("instructions").style.display = "none";
+      // Exibe uma mensagem ao carregar o Hit Test com sucesso
+      document.addEventListener('ar-hit-test-select', (event) => {
+        const box = document.querySelector('#object-box');
+        box.setAttribute('visible', 'true');
+        console.log('Objeto ancorado com sucesso!');
       });
     </script>
   </body>
