@@ -1,78 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8">
-    <title>AR com A-Frame e AR.js</title>
-    <!-- Meta para responsividade em dispositivos móveis -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Biblioteca A-Frame -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- Biblioteca AR.js integrada ao A-Frame -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <title>Aplicativo AR com A-Frame</title>
+    <!-- Importa o A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
-      body, html {
+      /* Remove margens e esconde barras de rolagem */
+      html, body {
         margin: 0;
+        padding: 0;
         overflow: hidden;
+      }
+      /* Estilo para o vídeo que mostra o feed da câmera */
+      #videoFeed {
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
+        object-fit: cover;  /* Cobre toda a tela */
+        z-index: -1;        /* Fica atrás do conteúdo do A-Frame */
+      }
+      /* O canvas do A-Frame será sobreposto ao vídeo */
+      a-scene {
+        position: absolute;
+        top: 0;
+        left: 0;
       }
     </style>
   </head>
   <body>
-    <!-- Cena com AR.js ativado (usa a câmera do dispositivo) -->
-    <a-scene embedded arjs="sourceType: webcam;">
-      <!-- Câmera do A-Frame -->
-      <a-camera position="0 0 0"></a-camera>
+    <!-- Vídeo que exibirá o feed da câmera -->
+    <video id="videoFeed" autoplay playsinline></video>
+    
+    <!-- Cena do A-Frame com fundo transparente (alpha: true) -->
+    <a-scene embedded renderer="alpha: true">
+      <a-assets>
+        <!-- 
+          Coloque seu modelo 3D aqui.
+          Se preferir um objeto simples, você pode, por exemplo, remover o a-asset-item e usar
+          um primitivo como <a-box id="placedModel" color="#4CC3D9" depth="1" height="1" width="1" visible="false"></a-box>
+          Lembre-se que 1 unidade = 1 metro.
+        -->
+        <a-box id="placedModel" color="#4CC3D9" depth="1" height="1" width="1" visible="false"></a-box>
+      </a-assets>
       
-      <!-- Objeto AR: neste exemplo, um cubo vermelho com dimensões 1x1x1 (metros) -->
-      <!-- Inicialmente, ele está oculto até que seja posicionado via clique -->
-      <a-entity id="arObject"
-                geometry="primitive: box; height: 1; width: 1; depth: 1"
-                material="color: red"
-                visible="false">
+      <!-- Câmera (a posição e orientação serão atualizadas conforme o dispositivo) -->
+      <a-entity id="camera" camera look-controls></a-entity>
+      
+      <!-- Entidade que conterá o modelo a ser posicionado. Inicialmente invisível. -->
+      <a-entity 
+        id="placedModel" 
+        gltf-model="#model" 
+        scale="1 1 1" 
+        visible="false">
       </a-entity>
+      
+      <!-- Entidade sem representação visual que usará nosso componente customizado -->
+      <a-entity place-on-click></a-entity>
     </a-scene>
-
+    
     <script>
-      // Aguarda o carregamento da cena
-      document.addEventListener("DOMContentLoaded", function () {
-        const sceneEl = document.querySelector("a-scene");
-
-        // Evento de clique na cena
-        sceneEl.addEventListener("click", function (event) {
-          // Obtém a câmera (do tipo THREE.Camera) da cena
-          const camera = sceneEl.camera;
-          
-          // Converte as coordenadas do clique para o intervalo [-1, 1]
-          const mouse = new THREE.Vector2();
-          mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-          mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-          // Configura o raycaster a partir da posição do mouse e da câmera
-          const raycaster = new THREE.Raycaster();
-          raycaster.setFromCamera(mouse, camera);
-
-          // Define um plano horizontal (com normal apontando para cima, 0,1,0)
-          // O segundo parâmetro é a constante "d" da equação do plano (n·p + d = 0),
-          // aqui, d = 0 equivale a um plano em y = 0.
-          const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-          const intersectPoint = new THREE.Vector3();
-
-          // Calcula a interseção do raio com o plano
-          raycaster.ray.intersectPlane(plane, intersectPoint);
-
-          if (intersectPoint) {
-            console.log("Posição calculada:", intersectPoint);
-
-            // Seleciona o objeto AR e atualiza sua posição
-            const arObject = document.getElementById("arObject");
-            arObject.setAttribute("position", `${intersectPoint.x} ${intersectPoint.y} ${intersectPoint.z}`);
-            // Torna o objeto visível
-            arObject.setAttribute("visible", "true");
-          } else {
-            console.log("Nenhuma interseção encontrada.");
-          }
+      /* ========= Inicia a câmera via getUserMedia ========= */
+      const video = document.getElementById('videoFeed');
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        // Tenta acessar a câmera traseira (environment)
+        navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: { ideal: "environment" } } 
+        })
+        .then(function(stream) {
+          video.srcObject = stream;
+        })
+        .catch(function(err) {
+          console.error("Erro ao acessar a câmera:", err);
+          alert("Não foi possível acessar a câmera.");
         });
+      } else {
+        alert("getUserMedia não é suportado neste dispositivo.");
+      }
+      
+      /* ========= Componente para posicionar o objeto ao tocar na tela ========= */
+      AFRAME.registerComponent('place-on-click', {
+        init: function() {
+          const sceneEl = this.el.sceneEl;
+          const placedModelEl = document.getElementById('placedModel');
+          const camera = sceneEl.camera;
+          // Cria um plano horizontal (y = 0) para servir como “piso”
+          const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+          const raycaster = new THREE.Raycaster();
+          const mouse = new THREE.Vector2();
+          
+          sceneEl.addEventListener('click', function(evt) {
+            // Verifica se o canvas já foi criado
+            const canvas = sceneEl.canvas;
+            if (!canvas) { return; }
+            // Obtém as dimensões e posição do canvas
+            const rect = canvas.getBoundingClientRect();
+            // Converte as coordenadas do clique para o sistema de coordenadas normalizadas (NDC)
+            mouse.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Atualiza o raycaster a partir da câmera e da posição do mouse
+            raycaster.setFromCamera(mouse, camera);
+            const intersectPoint = new THREE.Vector3();
+            // Calcula a interseção do raio com o plano horizontal
+            if (raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
+              // Posiciona o objeto no ponto de interseção
+              placedModelEl.setAttribute('position', 
+                intersectPoint.x + ' ' + intersectPoint.y + ' ' + intersectPoint.z);
+              // Torna o objeto visível
+              placedModelEl.setAttribute('visible', 'true');
+            }
+          });
+        }
       });
     </script>
   </body>
