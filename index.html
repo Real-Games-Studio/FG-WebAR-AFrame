@@ -1,118 +1,97 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
   <head>
     <meta charset="utf-8">
-    <title>Aplicativo AR com A-Frame</title>
-    <!-- Importa o A-Frame -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <style>
-      /* Remove margens e esconde barras de rolagem */
-      html, body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
-      /* Estilo para o vídeo que mostra o feed da câmera */
-      #videoFeed {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;  /* Cobre toda a tela */
-        z-index: -1;        /* Fica atrás do conteúdo do A-Frame */
-      }
-      /* O canvas do A-Frame será sobreposto ao vídeo */
-      a-scene {
-        position: absolute;
-        top: 0;
-        left: 0;
-      }
-    </style>
+    <title>Exemplo AR com A-Frame</title>
+    <!-- Configuração de viewport para dispositivos móveis -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- Inclusão do A-Frame (versão 1.2.0 ou superior) -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   </head>
-  <body>
-    <!-- Vídeo que exibirá o feed da câmera -->
-    <video id="videoFeed" autoplay playsinline></video>
-    
-    <!-- Cena do A-Frame com fundo transparente (alpha: true) -->
-    <a-scene embedded renderer="alpha: true">
-      <a-assets>
-        <!-- 
-          Coloque seu modelo 3D aqui.
-          Se preferir um objeto simples, você pode, por exemplo, remover o a-asset-item e usar
-          um primitivo como <a-box id="placedModel" color="#4CC3D9" depth="1" height="1" width="1" visible="false"></a-box>
-          Lembre-se que 1 unidade = 1 metro.
-        -->
-        <a-box id="placedModel" color="#4CC3D9" depth="1" height="1" width="1" visible="false"></a-box>
-      </a-assets>
+  <body style="margin: 0; overflow: hidden;">
+    <!-- A cena:
+         • "embedded" para ocupar a tela inteira;
+         • Desativa o menu padrão de VR (não necessário para AR);
+         • Atributo xr com optionalFeatures "hit-test" para habilitar a funcionalidade de detecção de superfícies.
+    -->
+    <a-scene id="scene"
+             embedded
+             vr-mode-ui="enabled: false"
+             xr="optionalFeatures: hit-test"
+             renderer="logarithmicDepthBuffer: true">
+      <!-- A câmera padrão -->
+      <a-camera id="camera"></a-camera>
       
-      <!-- Câmera (a posição e orientação serão atualizadas conforme o dispositivo) -->
-      <a-entity id="camera" camera look-controls></a-entity>
-      
-      <!-- Entidade que conterá o modelo a ser posicionado. Inicialmente invisível. -->
-      <a-entity 
-        id="placedModel" 
-        gltf-model="#model" 
-        scale="1 1 1" 
-        visible="false">
-      </a-entity>
-      
-      <!-- Entidade sem representação visual que usará nosso componente customizado -->
-      <a-entity place-on-click></a-entity>
+      <!-- Uma entidade “dummy” à qual vincularemos o componente customizado que fará o hit test e posicionará o objeto -->
+      <a-entity ar-hit-test-place></a-entity>
     </a-scene>
-    
+
     <script>
-      /* ========= Inicia a câmera via getUserMedia ========= */
-      const video = document.getElementById('videoFeed');
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        // Tenta acessar a câmera traseira (environment)
-        navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: { ideal: "environment" } } 
-        })
-        .then(function(stream) {
-          video.srcObject = stream;
-        })
-        .catch(function(err) {
-          console.error("Erro ao acessar a câmera:", err);
-          alert("Não foi possível acessar a câmera.");
-        });
-      } else {
-        alert("getUserMedia não é suportado neste dispositivo.");
-      }
-      
-      /* ========= Componente para posicionar o objeto ao tocar na tela ========= */
-      AFRAME.registerComponent('place-on-click', {
-        init: function() {
+      /**
+       * Componente ar-hit-test-place
+       * 
+       * - Ao entrar em AR, solicita uma fonte de hit test (usando o reference space "viewer").
+       * - A cada frame (tick), realiza o hit test e armazena a última pose válida.
+       * - Ao tocar na tela (evento 'click'), se houver uma pose válida, cria e posiciona um cubo de 1 metro de lado.
+       */
+      AFRAME.registerComponent('ar-hit-test-place', {
+        init: function () {
           const sceneEl = this.el.sceneEl;
-          const placedModelEl = document.getElementById('placedModel');
-          const camera = sceneEl.camera;
-          // Cria um plano horizontal (y = 0) para servir como “piso”
-          const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-          const raycaster = new THREE.Raycaster();
-          const mouse = new THREE.Vector2();
-          
-          sceneEl.addEventListener('click', function(evt) {
-            // Verifica se o canvas já foi criado
-            const canvas = sceneEl.canvas;
-            if (!canvas) { return; }
-            // Obtém as dimensões e posição do canvas
-            const rect = canvas.getBoundingClientRect();
-            // Converte as coordenadas do clique para o sistema de coordenadas normalizadas (NDC)
-            mouse.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
-            
-            // Atualiza o raycaster a partir da câmera e da posição do mouse
-            raycaster.setFromCamera(mouse, camera);
-            const intersectPoint = new THREE.Vector3();
-            // Calcula a interseção do raio com o plano horizontal
-            if (raycaster.ray.intersectPlane(groundPlane, intersectPoint)) {
-              // Posiciona o objeto no ponto de interseção
-              placedModelEl.setAttribute('position', 
-                intersectPoint.x + ' ' + intersectPoint.y + ' ' + intersectPoint.z);
-              // Torna o objeto visível
-              placedModelEl.setAttribute('visible', 'true');
+          this.hitTestSource = null;   // Será preenchido com a fonte de hit test
+          this.lastHitPose = null;     // Armazena a última pose detectada
+
+          // Quando a sessão AR iniciar, solicite a fonte de hit test.
+          sceneEl.renderer.xr.addEventListener('sessionstart', () => {
+            const session = sceneEl.renderer.xr.getSession();
+            // Solicita o reference space "viewer" para o hit test
+            session.requestReferenceSpace('viewer').then((refSpace) => {
+              session.requestHitTestSource({ space: refSpace }).then((source) => {
+                this.hitTestSource = source;
+              });
+            });
+            // Limpa a fonte de hit test quando a sessão terminar
+            session.addEventListener('end', () => {
+              this.hitTestSource = null;
+            });
+          });
+
+          // Ao tocar na tela, se houver uma pose válida, cria o objeto
+          sceneEl.addEventListener('click', () => {
+            if (this.lastHitPose) {
+              const pos = this.lastHitPose.transform.position;
+              // Cria um cubo (a-box) com dimensões reais de 1 metro
+              const box = document.createElement('a-box');
+              box.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
+              box.setAttribute('width', 1);
+              box.setAttribute('height', 1);
+              box.setAttribute('depth', 1);
+              box.setAttribute('color', '#4CC3D9');
+              // Adiciona o cubo à cena
+              sceneEl.appendChild(box);
             }
           });
+        },
+
+        tick: function (time, delta) {
+          const sceneEl = this.el.sceneEl;
+          // O objeto XRFrame é disponibilizado pela render loop da sessão AR.
+          // Em alguns exemplos, utiliza-se sceneEl.frame; certifique-se de que o ambiente WebXR o fornece.
+          const frame = sceneEl.frame;
+          if (!frame || !this.hitTestSource) { return; }
+          
+          // Obtém o reference space atual da sessão
+          const referenceSpace = sceneEl.renderer.xr.getReferenceSpace();
+          // Executa o hit test – retorna uma lista de resultados
+          const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+          if (hitTestResults.length > 0) {
+            // Usa o primeiro resultado (geralmente o mais próximo)
+            const hit = hitTestResults[0];
+            const pose = hit.getPose(referenceSpace);
+            if (pose) {
+              // Armazena a pose para uso no clique/tap
+              this.lastHitPose = pose;
+            }
+          }
         }
       });
     </script>
