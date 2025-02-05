@@ -2,85 +2,72 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>AR Markerless com Plane Detection e Camera Background</title>
-    <!-- Inclui o A-Frame -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <title>Web AR com A-Frame e Simple AR</title>
+    <!-- Carrega o A-Frame -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Carrega a biblioteca Simple AR (ajuste a URL conforme sua instalação) -->
+    <script src="https://unpkg.com/simple-ar"></script>
     <style>
-      body { margin: 0; overflow: hidden; }
+      body { margin: 0; padding: 0; overflow: hidden; }
     </style>
   </head>
   <body>
-    <!-- Configuramos a cena para iniciar uma sessão AR imersiva com hit test.
-         O atributo xr com mode: ar informa ao A-Frame que a sessão será AR imersiva,
-         e optionalFeatures: hit-test ativa a funcionalidade de detecção de planos. -->
-    <a-scene 
-      renderer="antialias: true; alpha: true" 
-      vr-mode-ui="enabled: false" 
-      xr="mode: ar; optionalFeatures: hit-test" 
-      embedded>
+    <!-- A cena inclui o componente simple-ar com a detecção de planos ativada -->
+    <a-scene simple-ar="planeDetection: true;">
+      <!-- Objeto que será posicionado (inicialmente invisível) -->
+      <a-box id="myBox" color="#EF2D5E" depth="0.2" height="0.2" width="0.2" visible="false"></a-box>
       
-      <!-- A câmera padrão da cena. Em uma sessão AR imersiva, o feed da câmera é usado como fundo automaticamente. -->
-      <a-camera id="camera" position="0 1.6 0" look-controls></a-camera>
-      
-      <!-- Entidade que usaremos para indicar o ponto de detecção no plano (ex.: uma caixa vermelha). -->
-      <a-box id="placement" 
-             geometry="primitive: box; height: 0.2; width: 0.2; depth: 0.2" 
-             material="color: red" 
-             visible="false">
-      </a-box>
-      
-      <script>
-        // Componente que realiza o hit test e posiciona a entidade "placement" sobre o plano detectado.
-        AFRAME.registerComponent('plane-hit-test', {
-          init: function () {
-            const sceneEl = this.el.sceneEl;
-            
-            // Quando a sessão XR iniciar, solicita o espaço do visualizador e a fonte de hit test.
-            sceneEl.renderer.xr.addEventListener('sessionstart', () => {
-              const session = sceneEl.renderer.xr.getSession();
-              session.requestReferenceSpace('viewer').then((viewerSpace) => {
-                session.requestHitTestSource({ space: viewerSpace }).then((hitTestSource) => {
-                  this.hitTestSource = hitTestSource;
-                });
-              });
-            });
-            
-            // Limpa a fonte de hit test quando a sessão terminar.
-            sceneEl.renderer.xr.addEventListener('sessionend', () => {
-              this.hitTestSource = null;
-            });
-          },
-          tick: function () {
-            const sceneEl = this.el.sceneEl;
-            if (!this.hitTestSource || !sceneEl.frame) return;
-            
-            // Obtém o frame atual e o espaço de referência.
-            const frame = sceneEl.frame;
-            const referenceSpace = sceneEl.renderer.xr.getReferenceSpace();
-            
-            // Executa o hit test e verifica se há algum resultado.
-            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
-            if (hitTestResults.length > 0) {
-              const hit = hitTestResults[0];
-              const pose = hit.getPose(referenceSpace);
-              if (pose) {
-                // Atualiza a posição da entidade "placement" com a posição detectada.
-                const placementEl = document.getElementById('placement');
-                placementEl.setAttribute('visible', true);
-                placementEl.object3D.position.set(
-                  pose.transform.position.x,
-                  pose.transform.position.y,
-                  pose.transform.position.z
-                );
-              }
-            }
-          }
-        });
-        
-        // Adiciona o componente à cena para iniciar o hit test.
-        document.querySelector('a-scene').setAttribute('plane-hit-test', '');
-      </script>
-      
+      <!-- Câmera com controles básicos -->
+      <a-entity camera position="0 1.6 0" look-controls></a-entity>
     </a-scene>
+
+    <script>
+      // Aguarda a cena carregar
+      document.querySelector('a-scene').addEventListener('loaded', function () {
+        const sceneEl = this;
+        // Acessa o canvas da cena
+        const canvas = sceneEl.canvas;
+
+        // Função que trata o toque/click na tela
+        function handleTap(evt) {
+          // Obtém as coordenadas do toque/click
+          let clientX, clientY;
+          if (evt.touches && evt.touches.length > 0) {
+            clientX = evt.touches[0].clientX;
+            clientY = evt.touches[0].clientY;
+          } else {
+            clientX = evt.clientX;
+            clientY = evt.clientY;
+          }
+
+          // Verifica se o Simple AR e seu método hitTest estão disponíveis
+          if (window.SimpleAR && typeof SimpleAR.hitTest === 'function') {
+            // Executa o hit test passando as coordenadas de tela
+            SimpleAR.hitTest(clientX, clientY)
+              .then(function(result) {
+                if (result && result.position) {
+                  // Seleciona o objeto que queremos posicionar
+                  const boxEl = document.getElementById('myBox');
+                  // Define a posição obtida pelo hit test
+                  boxEl.setAttribute('position', result.position);
+                  // Torna o objeto visível
+                  boxEl.setAttribute('visible', true);
+                } else {
+                  console.log('Nenhum plano detectado na posição tocada.');
+                }
+              })
+              .catch(function(err) {
+                console.error('Erro no hit test:', err);
+              });
+          } else {
+            console.warn('Simple AR não está disponível ou a função hitTest não foi encontrada.');
+          }
+        }
+
+        // Adiciona os listeners para toque (em dispositivos móveis) e clique (para testes no desktop)
+        canvas.addEventListener('touchend', handleTap, false);
+        canvas.addEventListener('click', handleTap, false);
+      });
+    </script>
   </body>
 </html>
