@@ -2,17 +2,78 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Hello, World! - A-Frame</title>
-    <meta name="description" content="Hello, World! - A-Frame">
-    <script src="https://aframe.io/releases/0.5.0/aframe.min.js"></script>
+    <title>AR com A-Frame e AR.js</title>
+    <!-- Meta para responsividade em dispositivos móveis -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Biblioteca A-Frame -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Biblioteca AR.js integrada ao A-Frame -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+      body, html {
+        margin: 0;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
   </head>
   <body>
-    <a-scene>
-      <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-      <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
-      <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-      <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
-      <a-sky color="#ECECEC"></a-sky>
+    <!-- Cena com AR.js ativado (usa a câmera do dispositivo) -->
+    <a-scene embedded arjs="sourceType: webcam;">
+      <!-- Câmera do A-Frame -->
+      <a-camera position="0 0 0"></a-camera>
+      
+      <!-- Objeto AR: neste exemplo, um cubo vermelho com dimensões 1x1x1 (metros) -->
+      <!-- Inicialmente, ele está oculto até que seja posicionado via clique -->
+      <a-entity id="arObject"
+                geometry="primitive: box; height: 1; width: 1; depth: 1"
+                material="color: red"
+                visible="false">
+      </a-entity>
     </a-scene>
+
+    <script>
+      // Aguarda o carregamento da cena
+      document.addEventListener("DOMContentLoaded", function () {
+        const sceneEl = document.querySelector("a-scene");
+
+        // Evento de clique na cena
+        sceneEl.addEventListener("click", function (event) {
+          // Obtém a câmera (do tipo THREE.Camera) da cena
+          const camera = sceneEl.camera;
+          
+          // Converte as coordenadas do clique para o intervalo [-1, 1]
+          const mouse = new THREE.Vector2();
+          mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+          mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+          // Configura o raycaster a partir da posição do mouse e da câmera
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouse, camera);
+
+          // Define um plano horizontal (com normal apontando para cima, 0,1,0)
+          // O segundo parâmetro é a constante "d" da equação do plano (n·p + d = 0),
+          // aqui, d = 0 equivale a um plano em y = 0.
+          const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+          const intersectPoint = new THREE.Vector3();
+
+          // Calcula a interseção do raio com o plano
+          raycaster.ray.intersectPlane(plane, intersectPoint);
+
+          if (intersectPoint) {
+            console.log("Posição calculada:", intersectPoint);
+
+            // Seleciona o objeto AR e atualiza sua posição
+            const arObject = document.getElementById("arObject");
+            arObject.setAttribute("position", `${intersectPoint.x} ${intersectPoint.y} ${intersectPoint.z}`);
+            // Torna o objeto visível
+            arObject.setAttribute("visible", "true");
+          } else {
+            console.log("Nenhuma interseção encontrada.");
+          }
+        });
+      });
+    </script>
   </body>
 </html>
