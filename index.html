@@ -2,35 +2,57 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Objeto na Posição Inicial do Usuário</title>
+    <title>Objeto e Posição em Tempo Real</title>
     <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- AR.js com suporte para localização (GPS) -->
+    <!-- AR.js com suporte para geolocalização (GPS) -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+      /* Estilização para o texto de posição */
+      #posicaoInfo {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-family: sans-serif;
+        font-size: 14px;
+        z-index: 100;
+      }
+    </style>
   </head>
   <body style="margin: 0; overflow: hidden;">
-    <!-- A cena utiliza AR.js em modo GPS -->
+    <!-- Div para exibir a posição em tempo real -->
+    <div id="posicaoInfo">Latitude: -- | Longitude: --</div>
+    
+    <!-- Cena do A-Frame com AR.js -->
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
       
-      <!-- A câmera que obtém a posição do usuário -->
+      <!-- Câmera com suporte a geolocalização -->
       <a-camera gps-camera rotation-reader></a-camera>
       
-      <!-- Objeto que será posicionado na posição inicial do usuário -->
+      <!-- Objeto a ser posicionado na posição inicial do usuário -->
       <a-entity id="objeto" 
                 geometry="primitive: box" 
                 material="color: red" 
                 scale="2 2 2">
       </a-entity>
       
-      <!-- Script que captura a posição inicial e posiciona o objeto -->
+      <!-- Script para atualizar a posição e posicionar o objeto -->
       <script>
         window.addEventListener('gps-camera-update-position', function() {
           const cam = document.querySelector('[gps-camera]');
           if (cam && cam.components && cam.components['gps-camera'] && cam.components['gps-camera'].currentCoords) {
             const latitude = cam.components['gps-camera'].currentCoords.latitude;
             const longitude = cam.components['gps-camera'].currentCoords.longitude;
+            
+            // Atualiza o texto exibido na tela
+            document.getElementById('posicaoInfo').innerHTML = 
+              `Latitude: ${latitude.toFixed(6)} | Longitude: ${longitude.toFixed(6)}`;
+            
+            // Posiciona o objeto somente uma vez na posição inicial
             const objeto = document.getElementById('objeto');
-            // Posiciona o objeto somente uma vez (na posição inicial)
             if (!objeto.getAttribute('data-posicionado')) {
               objeto.setAttribute('gps-entity-place', `latitude: ${latitude}; longitude: ${longitude};`);
               objeto.setAttribute('data-posicionado', true);
