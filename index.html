@@ -2,68 +2,13 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Exemplo AR com ar-hit-test (A-Frame 1.6.0)</title>
-    <!-- Configuração para dispositivos móveis -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <!-- Inclui o A-Frame 1.6.0 -->
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <title>Senna Tower - FG</title>
+    <meta name="Senna Tower" content="Senna Tower - FG">
+    <script src="https://aframe.io/releases/0.5.0/aframe.min.js"></script>
   </head>
-  <body style="margin: 0; overflow: hidden;">
-    <!-- Cena AR com WebXR e hit-test -->
-    <a-scene
-      xr="optionalFeatures: hit-test"
-      embedded
-      vr-mode-ui="enabled: false"
-      renderer="logarithmicDepthBuffer: true">
-      
-      <!-- Câmera -->
-      <a-camera id="camera"></a-camera>
-      
-      <!--
-        Retículo: a entidade que utiliza o componente integrado ar-hit-test.
-        O componente atualiza automaticamente sua posição (e rotação) quando um
-        hit test é realizado com sucesso.
-        Inicialmente, o retículo está oculto (visible="false") e só será exibido
-        quando uma posição válida for definida.
-      -->
-      <a-entity id="reticle"
-                ar-hit-test
-                geometry="primitive: ring; radiusInner: 0.05; radiusOuter: 0.06"
-                material="color: cyan; shader: flat"
-                visible="false">
-      </a-entity>
+  <body>
+    <a-scene camera webxr="optionalFeatures:  hit-test;" ar-hit-test="target:#myobject;">
+      <a-box id="myobject" position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
     </a-scene>
-
-    <script>
-      const sceneEl = document.querySelector('a-scene');
-      const reticle = document.getElementById('reticle');
-
-      // O componente ar-hit-test atualiza a posição do retículo quando um hit test é bem-sucedido.
-      // Aqui usamos o evento 'componentchanged' para detectar mudanças no atributo "position".
-      reticle.addEventListener('componentchanged', (evt) => {
-        if (evt.detail.name === 'position') {
-          const pos = reticle.getAttribute('position');
-          // Se a posição for diferente do valor padrão (por exemplo, {x: 0, y: 0, z: 0}),
-          // consideramos que um hit foi encontrado e tornamos o retículo visível.
-          if (pos.x !== 0 || pos.y !== 0 || pos.z !== 0) {
-            reticle.setAttribute('visible', true);
-          }
-        }
-      });
-
-      // Ao tocar (ou clicar) na tela, se o retículo estiver visível (ou seja, se houver
-      // uma superfície detectada), cria um cubo na posição do retículo.
-      sceneEl.addEventListener('click', () => {
-        if (!reticle.getAttribute('visible')) { return; }
-        const pos = reticle.getAttribute('position');
-        const box = document.createElement('a-box');
-        box.setAttribute('position', pos);
-        box.setAttribute('width', 1);
-        box.setAttribute('height', 1);
-        box.setAttribute('depth', 1);
-        box.setAttribute('color', '#4CC3D9');
-        sceneEl.appendChild(box);
-      });
-    </script>
   </body>
 </html>
