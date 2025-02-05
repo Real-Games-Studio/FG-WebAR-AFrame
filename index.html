@@ -9,6 +9,8 @@
     <script src="https://unpkg.com/simple-ar"></script>
     <style>
       body { margin: 0; padding: 0; overflow: hidden; }
+      /* Garante que o canvas não intercepte os gestos do navegador */
+      a-scene, canvas { touch-action: none; }
     </style>
   </head>
   <body>
@@ -22,51 +24,63 @@
     </a-scene>
 
     <script>
-      // Aguarda a cena carregar
       document.querySelector('a-scene').addEventListener('loaded', function () {
         const sceneEl = this;
-        // Acessa o canvas da cena
-        const canvas = sceneEl.canvas;
-
-        // Função que trata o toque/click na tela
-        function handleTap(evt) {
-          // Obtém as coordenadas do toque/click
-          let clientX, clientY;
-          if (evt.touches && evt.touches.length > 0) {
-            clientX = evt.touches[0].clientX;
-            clientY = evt.touches[0].clientY;
-          } else {
-            clientX = evt.clientX;
-            clientY = evt.clientY;
-          }
-
-          // Verifica se o Simple AR e seu método hitTest estão disponíveis
-          if (window.SimpleAR && typeof SimpleAR.hitTest === 'function') {
-            // Executa o hit test passando as coordenadas de tela
-            SimpleAR.hitTest(clientX, clientY)
-              .then(function(result) {
-                if (result && result.position) {
-                  // Seleciona o objeto que queremos posicionar
-                  const boxEl = document.getElementById('myBox');
-                  // Define a posição obtida pelo hit test
-                  boxEl.setAttribute('position', result.position);
-                  // Torna o objeto visível
-                  boxEl.setAttribute('visible', true);
-                } else {
-                  console.log('Nenhum plano detectado na posição tocada.');
-                }
-              })
-              .catch(function(err) {
-                console.error('Erro no hit test:', err);
-              });
-          } else {
-            console.warn('Simple AR não está disponível ou a função hitTest não foi encontrada.');
-          }
+        
+        // Aguarda o canvas ser definido pela cena
+        if (!sceneEl.canvas) {
+          sceneEl.addEventListener('render-target-loaded', setupListeners);
+        } else {
+          setupListeners();
         }
 
-        // Adiciona os listeners para toque (em dispositivos móveis) e clique (para testes no desktop)
-        canvas.addEventListener('touchend', handleTap, false);
-        canvas.addEventListener('click', handleTap, false);
+        function setupListeners() {
+          const canvas = sceneEl.canvas;
+          // Garante que o canvas não interprete os gestos de forma padrão
+          canvas.style.touchAction = 'none';
+
+          function handleTap(evt) {
+            evt.preventDefault();
+
+            // Obtém o retângulo do canvas para ajustar as coordenadas
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+            if (evt.touches && evt.touches.length > 0) {
+              x = evt.touches[0].clientX - rect.left;
+              y = evt.touches[0].clientY - rect.top;
+            } else {
+              x = evt.clientX - rect.left;
+              y = evt.clientY - rect.top;
+            }
+
+            // Exibe as coordenadas para debug (opcional)
+            console.log(`Coordenadas relativas: x=${x}, y=${y}`);
+
+            // Verifica se o Simple AR e seu método hitTest estão disponíveis
+            if (window.SimpleAR && typeof SimpleAR.hitTest === 'function') {
+              // Executa o hit test passando as coordenadas ajustadas
+              SimpleAR.hitTest(x, y)
+                .then(function(result) {
+                  if (result && result.position) {
+                    const boxEl = document.getElementById('myBox');
+                    boxEl.setAttribute('position', result.position);
+                    boxEl.setAttribute('visible', true);
+                  } else {
+                    console.log('Nenhum plano detectado na posição tocada.');
+                  }
+                })
+                .catch(function(err) {
+                  console.error('Erro no hit test:', err);
+                });
+            } else {
+              console.warn('Simple AR não está disponível ou a função hitTest não foi encontrada.');
+            }
+          }
+
+          // Adiciona os listeners para toque e clique (útil para testes no desktop)
+          canvas.addEventListener('touchstart', handleTap, false);
+          canvas.addEventListener('click', handleTap, false);
+        }
       });
     </script>
   </body>
