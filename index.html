@@ -1,15 +1,10 @@
-<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>Senna Tower - FG</title>
-    <meta name="Senna Tower" content="Senna Tower - FG">
-    <script src="https://aframe.io/releases/0.5.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   </head>
   <body>
-    <a-scene xr-mode-ui="enterAREnabled" webxr="optionalFeatures: hit-test;" ar-hit-test="target:#myobject;">
-      <a-camera id="camera"></a-camera>
-      <a-entity id="myobject" geometry="primitive: box" material="color: red">
+    <a-scene>
+      <a-box color="red" position="0 2 -5" rotation="0 45 45" scale="2 2 2"></a-box>
     </a-scene>
   </body>
 </html>
