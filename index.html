@@ -7,7 +7,8 @@
     <script src="https://aframe.io/releases/0.5.0/aframe.min.js"></script>
   </head>
   <body>
-    <a-scene camera webxr="optionalFeatures: hit-test;" ar-hit-test="target:#myobject;">
+    <a-scene xr-mode-ui="enterAREnabled" webxr="optionalFeatures: hit-test;" ar-hit-test="target:#myobject;">
+      <a-camera id="camera"></a-camera>
       <a-entity id="myobject" geometry="primitive: box" material="color: red">
     </a-scene>
   </body>
