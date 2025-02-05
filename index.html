@@ -1,18 +1,86 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>AR.js A-Frame Location-based</title>
-<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-<script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/three.js/build/ar-threex-location-only.js'></script>
-<script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js'></script>
-</head>
-<body>
-<a-scene vr-mode-ui='enabled: false' arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
-    <a-camera gps-new-camera='gpsMinDistance: 5'></a-camera>
-    <a-entity material='color: red' geometry='primitive: box' gps-new-entity-place="latitude: -23.618328407627267; longitude: -46.56672431366633" scale="10 10 10"></a-entity>
-    <a-entity material='color: green' geometry='primitive: box' gps-new-entity-place="latitude: -23.619205003267847; longitude: -46.567363180515855" scale="10 10 10"></a-entity>
-    <a-entity material='color: blue' geometry='primitive: box' gps-new-entity-place="latitude: -23.618424020791814; longitude: -46.567352032957096" scale="10 10 10"></a-entity>
-    <a-entity material='color: yellow' geometry='primitive: box' gps-new-entity-place="latitude: -23.621873050777513; longitude: -46.56694490092991" scale="10 10 10"></a-entity>
-</a-scene>
-</body>
+  <head>
+    <meta charset="utf-8">
+    <title>AR Markerless com Plane Detection e Camera Background</title>
+    <!-- Inclui o A-Frame -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <!-- Configuramos a cena para iniciar uma sessão AR imersiva com hit test.
+         O atributo xr com mode: ar informa ao A-Frame que a sessão será AR imersiva,
+         e optionalFeatures: hit-test ativa a funcionalidade de detecção de planos. -->
+    <a-scene 
+      renderer="antialias: true; alpha: true" 
+      vr-mode-ui="enabled: false" 
+      xr="mode: ar; optionalFeatures: hit-test" 
+      embedded>
+      
+      <!-- A câmera padrão da cena. Em uma sessão AR imersiva, o feed da câmera é usado como fundo automaticamente. -->
+      <a-camera id="camera" position="0 1.6 0" look-controls></a-camera>
+      
+      <!-- Entidade que usaremos para indicar o ponto de detecção no plano (ex.: uma caixa vermelha). -->
+      <a-box id="placement" 
+             geometry="primitive: box; height: 0.2; width: 0.2; depth: 0.2" 
+             material="color: red" 
+             visible="false">
+      </a-box>
+      
+      <script>
+        // Componente que realiza o hit test e posiciona a entidade "placement" sobre o plano detectado.
+        AFRAME.registerComponent('plane-hit-test', {
+          init: function () {
+            const sceneEl = this.el.sceneEl;
+            
+            // Quando a sessão XR iniciar, solicita o espaço do visualizador e a fonte de hit test.
+            sceneEl.renderer.xr.addEventListener('sessionstart', () => {
+              const session = sceneEl.renderer.xr.getSession();
+              session.requestReferenceSpace('viewer').then((viewerSpace) => {
+                session.requestHitTestSource({ space: viewerSpace }).then((hitTestSource) => {
+                  this.hitTestSource = hitTestSource;
+                });
+              });
+            });
+            
+            // Limpa a fonte de hit test quando a sessão terminar.
+            sceneEl.renderer.xr.addEventListener('sessionend', () => {
+              this.hitTestSource = null;
+            });
+          },
+          tick: function () {
+            const sceneEl = this.el.sceneEl;
+            if (!this.hitTestSource || !sceneEl.frame) return;
+            
+            // Obtém o frame atual e o espaço de referência.
+            const frame = sceneEl.frame;
+            const referenceSpace = sceneEl.renderer.xr.getReferenceSpace();
+            
+            // Executa o hit test e verifica se há algum resultado.
+            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+            if (hitTestResults.length > 0) {
+              const hit = hitTestResults[0];
+              const pose = hit.getPose(referenceSpace);
+              if (pose) {
+                // Atualiza a posição da entidade "placement" com a posição detectada.
+                const placementEl = document.getElementById('placement');
+                placementEl.setAttribute('visible', true);
+                placementEl.object3D.position.set(
+                  pose.transform.position.x,
+                  pose.transform.position.y,
+                  pose.transform.position.z
+                );
+              }
+            }
+          }
+        });
+        
+        // Adiciona o componente à cena para iniciar o hit test.
+        document.querySelector('a-scene').setAttribute('plane-hit-test', '');
+      </script>
+      
+    </a-scene>
+  </body>
 </html>
