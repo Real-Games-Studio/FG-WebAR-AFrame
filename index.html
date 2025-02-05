@@ -2,91 +2,67 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Exemplo AR com A-Frame</title>
-    <!-- Configuração de viewport para dispositivos móveis -->
+    <title>Exemplo AR com ar-hit-test (A-Frame 1.6.0)</title>
+    <!-- Configuração para dispositivos móveis -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <!-- Inclusão do A-Frame (versão 1.2.0 ou superior) -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Inclui o A-Frame 1.6.0 -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   </head>
   <body style="margin: 0; overflow: hidden;">
-    <a-scene id="scene"
-             embedded
-             vr-mode-ui="enabled: false"
-             xr="optionalFeatures: hit-test"
-             renderer="logarithmicDepthBuffer: true">
-      <!-- Câmera padrão -->
+    <!-- Cena AR com WebXR e hit-test -->
+    <a-scene
+      xr="optionalFeatures: hit-test"
+      embedded
+      vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true">
+      
+      <!-- Câmera -->
       <a-camera id="camera"></a-camera>
       
-      <!-- Entidade para nosso componente customizado -->
-      <a-entity ar-hit-test-place></a-entity>
+      <!--
+        Retículo: a entidade que utiliza o componente integrado ar-hit-test.
+        O componente atualiza automaticamente sua posição (e rotação) quando um
+        hit test é realizado com sucesso.
+        Inicialmente, o retículo está oculto (visible="false") e só será exibido
+        quando uma posição válida for definida.
+      -->
+      <a-entity id="reticle"
+                ar-hit-test
+                geometry="primitive: ring; radiusInner: 0.05; radiusOuter: 0.06"
+                material="color: cyan; shader: flat"
+                visible="false">
+      </a-entity>
     </a-scene>
 
     <script>
-      /**
-       * Componente ar-hit-test-place
-       *
-       * - Ao iniciar a sessão AR, solicita a fonte de hit test.
-       * - No método tick, utiliza renderer.xr.getFrame() para obter o XRFrame.
-       * - Ao tocar na tela (click ou touchend), se houver uma pose válida,
-       *   cria e posiciona um cubo de 1 metro de lado.
-       */
-      AFRAME.registerComponent('ar-hit-test-place', {
-        init: function () {
-          const sceneEl = this.el.sceneEl;
-          this.hitTestSource = null;   // Fonte de hit test
-          this.lastHitPose = null;     // Armazena a última pose válida
+      const sceneEl = document.querySelector('a-scene');
+      const reticle = document.getElementById('reticle');
 
-          // Ao iniciar a sessão AR, solicita a fonte de hit test
-          sceneEl.renderer.xr.addEventListener('sessionstart', () => {
-            const session = sceneEl.renderer.xr.getSession();
-            session.requestReferenceSpace('viewer').then((refSpace) => {
-              session.requestHitTestSource({ space: refSpace }).then((source) => {
-                this.hitTestSource = source;
-              });
-            });
-            // Limpa a fonte ao encerrar a sessão
-            session.addEventListener('end', () => {
-              this.hitTestSource = null;
-            });
-          });
-
-          // Função para criar o objeto (cubo) na posição detectada
-          const placeObject = () => {
-            if (this.lastHitPose) {
-              const pos = this.lastHitPose.transform.position;
-              const box = document.createElement('a-box');
-              box.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
-              box.setAttribute('width', 1);
-              box.setAttribute('height', 1);
-              box.setAttribute('depth', 1);
-              box.setAttribute('color', '#4CC3D9');
-              sceneEl.appendChild(box);
-            }
-          };
-
-          // Adiciona os listeners para click e touchend
-          sceneEl.addEventListener('click', placeObject);
-          sceneEl.addEventListener('touchend', placeObject);
-        },
-
-        tick: function (time, delta) {
-          const sceneEl = this.el.sceneEl;
-          // Usa renderer.xr.getFrame() para obter o XRFrame atual
-          const frame = sceneEl.renderer.xr.getFrame();
-          if (!frame || !this.hitTestSource) { return; }
-          
-          const referenceSpace = sceneEl.renderer.xr.getReferenceSpace();
-          // Executa o hit test – retorna uma lista de resultados
-          const hitTestResults = frame.getHitTestResults(this.hitTestSource);
-          if (hitTestResults.length > 0) {
-            // Usa o primeiro resultado (geralmente o mais próximo)
-            const hit = hitTestResults[0];
-            const pose = hit.getPose(referenceSpace);
-            if (pose) {
-              this.lastHitPose = pose;
-            }
+      // O componente ar-hit-test atualiza a posição do retículo quando um hit test é bem-sucedido.
+      // Aqui usamos o evento 'componentchanged' para detectar mudanças no atributo "position".
+      reticle.addEventListener('componentchanged', (evt) => {
+        if (evt.detail.name === 'position') {
+          const pos = reticle.getAttribute('position');
+          // Se a posição for diferente do valor padrão (por exemplo, {x: 0, y: 0, z: 0}),
+          // consideramos que um hit foi encontrado e tornamos o retículo visível.
+          if (pos.x !== 0 || pos.y !== 0 || pos.z !== 0) {
+            reticle.setAttribute('visible', true);
           }
         }
+      });
+
+      // Ao tocar (ou clicar) na tela, se o retículo estiver visível (ou seja, se houver
+      // uma superfície detectada), cria um cubo na posição do retículo.
+      sceneEl.addEventListener('click', () => {
+        if (!reticle.getAttribute('visible')) { return; }
+        const pos = reticle.getAttribute('position');
+        const box = document.createElement('a-box');
+        box.setAttribute('position', pos);
+        box.setAttribute('width', 1);
+        box.setAttribute('height', 1);
+        box.setAttribute('depth', 1);
+        box.setAttribute('color', '#4CC3D9');
+        sceneEl.appendChild(box);
       });
     </script>
   </body>
