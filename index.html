@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Objeto e Posição em Tempo Real</title>
+    <title>Objeto e Posição em Tempo Real com Maior Precisão Visual</title>
     <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <!-- AR.js com suporte para geolocalização (GPS) -->
@@ -36,7 +36,7 @@
       <a-entity id="objeto" 
                 geometry="primitive: box" 
                 material="color: red" 
-                scale="2 2 2">
+                scale="1 1 1">
       </a-entity>
       
       <!-- Script para atualizar a posição e posicionar o objeto -->
@@ -47,9 +47,9 @@
             const latitude = cam.components['gps-camera'].currentCoords.latitude;
             const longitude = cam.components['gps-camera'].currentCoords.longitude;
             
-            // Atualiza o texto exibido na tela
+            // Atualiza o texto exibido na tela com 8 casas decimais
             document.getElementById('posicaoInfo').innerHTML = 
-              `Latitude: ${latitude.toFixed(6)} | Longitude: ${longitude.toFixed(6)}`;
+              `Latitude: ${latitude.toFixed(8)} | Longitude: ${longitude.toFixed(8)}`;
             
             // Posiciona o objeto somente uma vez na posição inicial
             const objeto = document.getElementById('objeto');
