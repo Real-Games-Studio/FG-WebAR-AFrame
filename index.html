@@ -1,67 +1,78 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>Objeto e Posição em Tempo Real com Maior Precisão Visual</title>
-    <!-- A-Frame -->
+    <meta charset="UTF-8">
+    <title>Web AR com A-Frame e MindAR</title>
+    <!-- Inclui o A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- AR.js com suporte para geolocalização (GPS) -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <style>
-      /* Estilização para o texto de posição */
-      #posicaoInfo {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background-color: rgba(255, 255, 255, 0.8);
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-family: sans-serif;
-        font-size: 14px;
-        z-index: 100;
-      }
-    </style>
+    <!-- Inclui o MindAR para A-Frame -->
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-aframe.prod.js"></script>
   </head>
-  <body style="margin: 0; overflow: hidden;">
-    <!-- Div para exibir a posição em tempo real -->
-    <div id="posicaoInfo">Latitude: -- | Longitude: --</div>
-    
-    <!-- Cena do A-Frame com AR.js -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+  <body>
+    <!-- A cena do A-Frame com MindAR (lembre-se de disponibilizar o arquivo targets.mind com o marker desejado) -->
+    <a-scene 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;" 
+      embedded 
+      color-space="sRGB" 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
       
-      <!-- Câmera com suporte a geolocalização -->
-      <a-camera gps-camera rotation-reader></a-camera>
-      
-      <!-- Objeto a ser posicionado na posição inicial do usuário -->
-      <a-entity id="objeto" 
-                geometry="primitive: box" 
-                material="color: red" 
-                scale="1 1 1">
+      <!-- Câmera padrão -->
+      <a-camera position="0 0 0"></a-camera>
+
+      <!-- Entity que representa o marker (alvo de imagem) -->
+      <a-entity mindar-image-target="targetIndex: 0" id="markerEntity">
+        <!-- Primitivo A-Frame: uma caixa posicionada sobre o marker -->
+        <a-box id="anchoredBox" position="0 0 0" rotation="0 45 0" 
+               color="#4CC3D9" depth="0.5" height="0.5" width="0.5">
+        </a-box>
       </a-entity>
       
-      <!-- Script para atualizar a posição e posicionar o objeto -->
+      <!-- Script para “ancorar” o objeto ao mundo quando o marker for perdido -->
       <script>
-        window.addEventListener('gps-camera-update-position', function() {
-          const cam = document.querySelector('[gps-camera]');
-          if (cam && cam.components && cam.components['gps-camera'] && cam.components['gps-camera'].currentCoords) {
-            const latitude = cam.components['gps-camera'].currentCoords.latitude;
-            const longitude = cam.components['gps-camera'].currentCoords.longitude;
+        AFRAME.registerComponent('anchor-on-target-loss', {
+          init: function () {
+            const markerEntity = document.querySelector('#markerEntity');
+            const box = document.querySelector('#anchoredBox');
+            let anchored = false;  // Para garantir que a ancoragem ocorra apenas uma vez
             
-            // Atualiza o texto exibido na tela com 8 casas decimais
-            document.getElementById('posicaoInfo').innerHTML = 
-              `Latitude: ${latitude.toFixed(8)} | Longitude: ${longitude.toFixed(8)}`;
+            // Evento quando o marker é detectado
+            markerEntity.addEventListener('targetFound', () => {
+              console.log('Marker encontrado');
+              // Aqui você pode implementar lógica adicional (por exemplo, efeitos ao detectar o marker)
+            });
             
-            // Posiciona o objeto somente uma vez na posição inicial
-            const objeto = document.getElementById('objeto');
-            if (!objeto.getAttribute('data-posicionado')) {
-              objeto.setAttribute('gps-entity-place', `latitude: ${latitude}; longitude: ${longitude};`);
-              objeto.setAttribute('data-posicionado', true);
-              console.log('Objeto posicionado em:', latitude, longitude);
-            }
+            // Evento quando o marker é perdido
+            markerEntity.addEventListener('targetLost', () => {
+              console.log('Marker perdido');
+              if (!anchored) {
+                // Obtenha a posição e a rotação atuais do box (em coordenadas mundiais)
+                const worldPos = new THREE.Vector3();
+                const worldQuat = new THREE.Quaternion();
+                box.object3D.getWorldPosition(worldPos);
+                box.object3D.getWorldQuaternion(worldQuat);
+                
+                // Reanexa o box à cena para “ancorá-lo” no mundo
+                const sceneEl = document.querySelector('a-scene');
+                sceneEl.object3D.attach(box.object3D);
+                
+                // Atualiza a posição e rotação para que o box mantenha seu lugar
+                box.object3D.position.copy(worldPos);
+                box.object3D.quaternion.copy(worldQuat);
+                
+                anchored = true;  // Evita nova reancoragem
+                console.log('Box ancorado na posição:', worldPos);
+              }
+            });
           }
         });
+
+        // Quando o DOM estiver carregado, adiciona o componente ao box
+        document.addEventListener("DOMContentLoaded", function () {
+          const box = document.querySelector('#anchoredBox');
+          box.setAttribute('anchor-on-target-loss', '');
+        });
       </script>
-      
     </a-scene>
   </body>
 </html>
