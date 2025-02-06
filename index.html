@@ -1,78 +1,21 @@
-<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8">
-    <title>Web AR com A-Frame e MindAR</title>
-    <!-- Inclui o A-Frame -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- Inclui o MindAR para A-Frame -->
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-aframe.prod.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   </head>
   <body>
-    <!-- A cena do A-Frame com MindAR (lembre-se de disponibilizar o arquivo targets.mind com o marker desejado) -->
-    <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;" 
-      embedded 
-      color-space="sRGB" 
-      vr-mode-ui="enabled: false" 
-      device-orientation-permission-ui="enabled: false">
-      
-      <!-- Câmera padrão -->
-      <a-camera position="0 0 0"></a-camera>
+    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-assets>
+        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
+        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
+      </a-assets>
 
-      <!-- Entity que representa o marker (alvo de imagem) -->
-      <a-entity mindar-image-target="targetIndex: 0" id="markerEntity">
-        <!-- Primitivo A-Frame: uma caixa posicionada sobre o marker -->
-        <a-box id="anchoredBox" position="0 0 0" rotation="0 45 0" 
-               color="#4CC3D9" depth="0.5" height="0.5" width="0.5">
-        </a-box>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
+        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.5 0.5 0.5" src="#avatarModel" animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate">
       </a-entity>
-      
-      <!-- Script para “ancorar” o objeto ao mundo quando o marker for perdido -->
-      <script>
-        AFRAME.registerComponent('anchor-on-target-loss', {
-          init: function () {
-            const markerEntity = document.querySelector('#markerEntity');
-            const box = document.querySelector('#anchoredBox');
-            let anchored = false;  // Para garantir que a ancoragem ocorra apenas uma vez
-            
-            // Evento quando o marker é detectado
-            markerEntity.addEventListener('targetFound', () => {
-              console.log('Marker encontrado');
-              // Aqui você pode implementar lógica adicional (por exemplo, efeitos ao detectar o marker)
-            });
-            
-            // Evento quando o marker é perdido
-            markerEntity.addEventListener('targetLost', () => {
-              console.log('Marker perdido');
-              if (!anchored) {
-                // Obtenha a posição e a rotação atuais do box (em coordenadas mundiais)
-                const worldPos = new THREE.Vector3();
-                const worldQuat = new THREE.Quaternion();
-                box.object3D.getWorldPosition(worldPos);
-                box.object3D.getWorldQuaternion(worldQuat);
-                
-                // Reanexa o box à cena para “ancorá-lo” no mundo
-                const sceneEl = document.querySelector('a-scene');
-                sceneEl.object3D.attach(box.object3D);
-                
-                // Atualiza a posição e rotação para que o box mantenha seu lugar
-                box.object3D.position.copy(worldPos);
-                box.object3D.quaternion.copy(worldQuat);
-                
-                anchored = true;  // Evita nova reancoragem
-                console.log('Box ancorado na posição:', worldPos);
-              }
-            });
-          }
-        });
-
-        // Quando o DOM estiver carregado, adiciona o componente ao box
-        document.addEventListener("DOMContentLoaded", function () {
-          const box = document.querySelector('#anchoredBox');
-          box.setAttribute('anchor-on-target-loss', '');
-        });
-      </script>
     </a-scene>
   </body>
 </html>
